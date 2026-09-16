@@ -1,0 +1,37 @@
+[Unit]
+Description=Beszel Monitor hub (server monitoring web UI)
+Documentation=https://beszel.dev
+After=network.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=beszelmonitor
+Group=beszelmonitor
+WorkingDirectory=/usr/local/beszelmonitor
+EnvironmentFile=-/usr/local/beszelmonitor/beszelmonitor.env
+# 监听地址固定写死：systemd 的 ExecStart 只支持基本 ${VAR} 展开，不支持
+# shell 风格 ${VAR:-default}（会整串展开为空导致 --http 缺参崩溃）；
+# 改监听地址：编辑本文件副本 /etc/systemd/system/beszelmonitor.service 后
+#   systemctl daemon-reload && systemctl restart beszelmonitor
+ExecStart=/usr/local/beszelmonitor/bin/beszel serve --dir /var/lib/beszelmonitor --http 127.0.0.1:8090
+TimeoutStartSec=30
+TimeoutStopSec=10
+# 注意：按 TOS 规范不配置 Restart/RestartSec——生命周期由应用中心统一管理
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/beszelmonitor
+LimitNOFILE=65536
+UMask=0027
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,144 @@
+#!/bin/bash
+# postinst - 安装/升级后处理
+# 组件树（/usr/local/beszelmonitor 下的二进制/配置/服务）随 deb 分发，
+# postinst 负责"派生状态"：属主、webui 解压、系统层注册（服务+nginx）、
+# 首装配置引导（env / APP_URL）、docker 组、启动服务。
+# 注：经 TOS 应用中心安装时平台也会注册 init.d 服务与 nginx 配置，
+# 本脚本的操作全部幂等，两条安装路径行为一致。
+set -e
+
+APP_DIR=/usr/local/beszelmonitor
+APP_USER=beszelmonitor
+DATA_DIR=/var/lib/beszelmonitor
+MAINT_LOG=/var/log/beszelmonitor-maint.log
+
+pkg_log() {
+  mkdir -p /var/log 2>/dev/null || true
+  echo "$(date '+%F %T') $*" >> "$MAINT_LOG" 2>/dev/null || true
+}
+pkg_log postinst "$1" "new=@VERSION@${2:+ old=$2}"
+
+case "$1" in
+  configure)
+    # 1. 用户兜底（preinst 已建；平台自动创建路径亦覆盖）
+    if ! id -u $APP_USER > /dev/null 2>&1; then
+      useradd --system --no-create-home --shell /usr/sbin/nologin $APP_USER 2>/dev/null || true
+    fi
+
+    # 2. 文件属主（官方 postinst 模板：应用目录归运行用户）
+    chown -R $APP_USER:$APP_USER "$APP_DIR" 2>/dev/null || true
+
+    # 3. 解压 webui.bz2（官方模板行为；External 模式下为占位页）
+    if [ -f "$APP_DIR/webui.bz2" ]; then
+      ( cd "$APP_DIR" && tar -xjf webui.bz2 2>/dev/null || true )
+    fi
+
+    # 4. 配置文件首装引导：仅在不存在时从随包模板复制（升级永不覆盖用户配置）
+    if [ ! -e "$APP_DIR/beszelmonitor.env" ] && [ -e "$APP_DIR/beszelmonitor.env.example" ]; then
+      install -m 0640 -o $APP_USER -g $APP_USER \
+        "$APP_DIR/beszelmonitor.env.example" "$APP_DIR/beszelmonitor.env"
+      pkg_log postinst bootstrap "beszelmonitor.env 首装"
+    fi
+    if [ ! -e "$APP_DIR/beszelmonitor-agent.env" ] && [ -e "$APP_DIR/beszelmonitor-agent.env.example" ]; then
+      install -m 0600 -o $APP_USER -g $APP_USER \
+        "$APP_DIR/beszelmonitor-agent.env.example" "$APP_DIR/beszelmonitor-agent.env"
+      pkg_log postinst bootstrap "beszelmonitor-agent.env 首装"
+    fi
+
+    # 5. 首装时按检测到的 IP 预填 APP_URL（通知邮件/OAuth 回调链接用；
+    #    新标签页入口为 https://<IP>/beszelmonitor/）
+    if [ -e "$APP_DIR/beszelmonitor.env" ] && ! grep -q '^APP_URL=' "$APP_DIR/beszelmonitor.env"; then
+      NAS_IP=""
+      if command -v ip > /dev/null 2>&1; then
+        NAS_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
+      fi
+      [ -n "$NAS_IP" ] || NAS_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+      if [ -n "$NAS_IP" ]; then
+        printf '\n# 首装时自动检测生成；IP 变化或改用域名时请更新\nAPP_URL=https://%s/beszelmonitor/\n' "$NAS_IP" \
+          >> "$APP_DIR/beszelmonitor.env"
+        pkg_log postinst bootstrap "APP_URL 预填 https://$NAS_IP/beszelmonitor/"
+      fi
+    fi
+
+    # 6. 数据目录（hub 库 + agent 指纹缓存）
+    install -d -o $APP_USER -g $APP_USER -m 0750 "$DATA_DIR" "$DATA_DIR/agent"
+
+    # 7. Docker 统计：运行用户加入 docker 组（组存在时；对齐上游行为）
+    if getent group docker > /dev/null 2>&1; then
+      if ! getent group docker | grep -q "\b$APP_USER\b"; then
+        usermod -aG docker $APP_USER 2>/dev/null \
+          && echo "已将 $APP_USER 用户加入 docker 组（容器统计可用，重启服务后生效）" \
+          || echo "警告: 加入 docker 组失败，容器统计不可用" >&2
+      fi
+    fi
+
+    # 8. 系统层注册（幂等；应用中心安装时平台也会做同样的事）
+    install -m 0644 "$APP_DIR/init.d/beszelmonitor.service" \
+      /etc/systemd/system/beszelmonitor.service
+    install -m 0644 "$APP_DIR/init.d/beszelmonitor-agent.service" \
+      /etc/systemd/system/beszelmonitor-agent.service
+    systemctl daemon-reload
+
+    # hub：启用（幂等，升级路径 prerm 只停不拆故必须重 enable）并（重）启动
+    systemctl enable beszelmonitor.service > /dev/null 2>&1 || true
+    if [ -n "${2:-}" ]; then
+      systemctl restart beszelmonitor.service 2>/dev/null || true
+    else
+      systemctl start beszelmonitor.service 2>/dev/null || true
+    fi
+
+    # agent：beszel-agent 未配置 TOKEN/KEY 时启动即退出（upstream 行为，
+    # "Failed to load public keys: no key provided"），故仅在已配置时启动；
+    # 未配置时保持 enabled，用户填好令牌 restart 即接入
+    systemctl enable beszelmonitor-agent.service > /dev/null 2>&1 || true
+    if grep -Eq '^(TOKEN|KEY)=' "$APP_DIR/beszelmonitor-agent.env" 2>/dev/null; then
+      systemctl restart beszelmonitor-agent.service 2>/dev/null || true
+    else
+      # 清掉旧包残留的 failed 状态（未配置时 inactive 才是正确形态）
+      systemctl reset-failed beszelmonitor-agent.service 2>/dev/null || true
+      pkg_log postinst "agent 未配置 TOKEN/KEY，暂不启动（enabled 待命）"
+    fi
+
+    # nginx 路由（TOS 平台会加载 nginx/<appid>.conf，此处在系统 nginx 兜底注册）
+    # 注意：裸 location 仅在 server 上下文合法（TOS 的 conf.d 即 include 在 server 层）；
+    # 写入后立即 nginx -t 校验，失败则回滚，绝不留下导致 nginx 无法 reload 的配置
+    if command -v nginx > /dev/null 2>&1 && [ -d /etc/nginx/conf.d ]; then
+      install -m 0644 "$APP_DIR/nginx/beszelmonitor.conf" \
+        /etc/nginx/conf.d/beszelmonitor.conf
+      if nginx -t > /dev/null 2>&1; then
+        nginx -s reload > /dev/null 2>&1 || true
+      else
+        rm -f /etc/nginx/conf.d/beszelmonitor.conf
+        echo "提示: 本机 nginx 的 conf.d 不在 server 上下文，已跳过自动注册 /beszelmonitor/。" >&2
+        echo "      请把 $APP_DIR/nginx/beszelmonitor.conf 的 location 段手工加入对应 server 块。" >&2
+      fi
+    fi
+
+    # 启动健康提示（只在 failed 时告警；agent 未配置时 inactive 属预期）
+    sleep 1
+    if systemctl is-failed --quiet beszelmonitor.service; then
+      echo "警告: beszelmonitor 启动失败，排查: journalctl -u beszelmonitor -n 50 --no-pager" >&2
+    elif systemctl is-active --quiet beszelmonitor.service; then
+      pkg_log postinst "beszelmonitor.service active"
+    fi
+    if systemctl is-failed --quiet beszelmonitor-agent.service; then
+      echo "警告: beszelmonitor-agent 失败，多为未配置令牌: journalctl -u beszelmonitor-agent -n 20 --no-pager" >&2
+    fi
+
+    pkg_log postinst done "@VERSION@"
+    echo ""
+    if [ -n "${2:-}" ]; then
+      echo "Beszel Monitor @VERSION@ 已完成升级（自 $2）。"
+    else
+      echo "Beszel Monitor @VERSION@ 已安装。"
+    fi
+    echo "  打开界面 : TOS 桌面 → Beszel Monitor 图标（新标签页打开 https://<NAS的IP>/beszelmonitor/）"
+    echo "  首次使用 : 打开网页 → 创建管理员账号"
+    echo "  接入本机 : agent 在配置令牌前不运行；网页 设置→令牌 创建通用令牌，填入"
+    echo "             的 TOKEN= 后执行: systemctl restart beszelmonitor-agent"
+    echo "  端口说明 : 仅监听 127.0.0.1:8090，不对外暴露端口（经 TOS nginx 路由访问）"
+    echo ""
+    ;;
+esac
+
+exit 0

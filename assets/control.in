@@ -1,0 +1,21 @@
+Package: beszelmonitor
+Version: @VERSION@
+Architecture: @ARCH@
+Maintainer: @MAINTAINER@
+Installed-Size: @SIZE@
+Depends: systemd
+Conflicts: beszel-agent
+Replaces: beszel-agent
+Section: utils
+Priority: optional
+Homepage: https://github.com/henrygd/beszel
+Description: Lightweight server monitoring hub with agent
+ Beszel is a lightweight server monitoring platform with historical
+ data, Docker container stats, and alerts. This package bundles both
+ the hub (web dashboard) and the agent as static Go binaries from the
+ official upstream release, so your NAS monitors itself out of the box.
+ .
+ The web UI opens in a new browser tab via the TOS App Center route
+ /beszelmonitor/. The backend listens on loopback only; no external
+ port is exposed. First visit walks you through creating the admin
+ account. Data is stored in /var/lib/beszelmonitor.

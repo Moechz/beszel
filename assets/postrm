@@ -1,0 +1,31 @@
+#!/bin/bash
+# postrm - 删除/清除后处理（官方模板 + 本应用清理项）
+set -e
+
+MAINT_LOG=/var/log/beszelmonitor-maint.log
+mkdir -p /var/log 2>/dev/null || true
+echo "$(date '+%F %T') postrm $*" >> "$MAINT_LOG" 2>/dev/null || true
+
+systemctl daemon-reload 2>/dev/null || true
+
+if [ "$1" = "purge" ]; then
+  # 监控数据库、备份与 agent 指纹（含历史指标、账号数据——purge 即全部清除）
+  rm -rf /var/lib/beszelmonitor
+  # 系统层注册文件（postinst 兜底安装的）
+  rm -f /etc/systemd/system/beszelmonitor.service
+  rm -f /etc/systemd/system/beszelmonitor-agent.service
+  rm -f /etc/nginx/conf.d/beszelmonitor.conf
+  # 运行用户
+  if id -u beszelmonitor > /dev/null 2>&1; then
+    userdel beszelmonitor 2>/dev/null || true
+  fi
+  systemctl daemon-reload 2>/dev/null || true
+  # nginx 路由移除后重载生效
+  if command -v nginx > /dev/null 2>&1 && nginx -t > /dev/null 2>&1; then
+    nginx -s reload > /dev/null 2>&1 || true
+  fi
+  # 注：/var/log/beszelmonitor-maint.log 保留（purge 取证用）
+  # 注：/usr/local/beszelmonitor 由 dpkg 按包清单删除
+fi
+
+exit 0

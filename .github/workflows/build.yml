@@ -1,0 +1,72 @@
+name: Build deb
+
+# 打 tag（v*，须等于 config.ini 的 version，如 v0.19.0-1）自动构建并发布
+# Release；也可手动触发（workflow_dispatch）
+# 注意：TOS 上架要求 Release 资产名为 <app_id>_<platform>.deb（无版本号），
+# 版本由 Release tag 表达——本工作流产出的 out/beszelmonitor_*.deb 即该命名
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      target_arch:
+        description: '目标架构'
+        type: choice
+        options: [amd64, arm64, both]
+        default: both
+
+permissions:
+  contents: write   # 发布 Release 用
+
+jobs:
+  build:
+    name: build (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 手动触发可选单架构；tag 触发默认双架构
+        arch: ${{ (github.event_name == 'workflow_dispatch'
+                    && inputs.target_arch != 'both')
+                    && fromJSON(format('["{0}"]', inputs.target_arch))
+                    || fromJSON('["amd64", "arm64"]') }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 缓存外部资源下载（build/downloads），key 含版本配置，升级自动失效
+      - name: Cache downloads
+        uses: actions/cache@v4
+        with:
+          path: build/downloads
+          key: deb-downloads-${{ matrix.arch }}-${{ hashFiles('config.env') }}
+
+      - name: Configure target arch
+        run: sed -i "s/^TARGET_ARCH=.*/TARGET_ARCH=${{ matrix.arch }}/" config.env
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Verify deb structure
+        run: |
+          ls -lh out/
+          dpkg-deb --info out/beszelmonitor_*_*.deb
+          dpkg-deb --contents out/beszelmonitor_*_*.deb
+          dpkg-deb --ctrl-tarfile out/beszelmonitor_*_*.deb | tar tz   # DEBIAN 脚本清单
+          lintian --pedantic --fail-on-warnings false out/beszelmonitor_*_*.deb || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: beszelmonitor-${{ matrix.arch }}
+          path: out/*.deb
+          if-no-files-found: error
+
+      - name: Release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/beszelmonitor_*.deb
+            out/beszelmonitor_*.deb.sha256
+          generate_release_notes: true

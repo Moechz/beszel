@@ -1,0 +1,20 @@
+#!/bin/bash
+# prerm - 删除/升级前处理（官方模板：清杀应用用户全部残留进程 + 停用服务）
+set -e
+
+MAINT_LOG=/var/log/beszelmonitor-maint.log
+mkdir -p /var/log 2>/dev/null || true
+echo "$(date '+%F %T') prerm $*" >> "$MAINT_LOG" 2>/dev/null || true
+
+# 清杀应用用户的残留进程（hub 与 agent 同用户，一并覆盖；升级安全）
+pkill -u beszelmonitor 2>/dev/null || true
+sleep 1
+
+# 停止服务（升级路径只停不 disable——重新启用交给新版 postinst；dpkg 会替换 unit 文件）
+systemctl stop beszelmonitor-agent.service 2>/dev/null || true
+systemctl stop beszelmonitor.service 2>/dev/null || true
+if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
+  systemctl disable beszelmonitor.service beszelmonitor-agent.service 2>/dev/null || true
+fi
+
+exit 0

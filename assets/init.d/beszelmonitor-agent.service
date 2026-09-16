@@ -1,0 +1,27 @@
+[Unit]
+Description=Beszel Monitor agent (local system metrics collector)
+Documentation=https://beszel.dev
+After=network.target beszelmonitor.service
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=beszelmonitor
+Group=beszelmonitor
+WorkingDirectory=/usr/local/beszelmonitor
+EnvironmentFile=-/usr/local/beszelmonitor/beszelmonitor-agent.env
+ExecStart=/usr/local/beszelmonitor/bin/beszel-agent
+TimeoutStartSec=30
+TimeoutStopSec=10
+# 注意：按 TOS 规范不配置 Restart/RestartSec——生命周期由应用中心统一管理
+# agent 需读 /proc /sys /dev/disk 与 docker.sock（经 docker 组），不做更激进收紧
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/beszelmonitor
+LimitNOFILE=65536
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

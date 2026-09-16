@@ -1,0 +1,14 @@
+# 构建工作区与产物
+build/
+out/
+
+# macOS
+.DS_Store
+._*
+
+# 文档不进仓库（README/PROJECT_NOTES 仅本地维护）
+README.md
+PROJECT_NOTES.md
+
+# Python
+__pycache__/

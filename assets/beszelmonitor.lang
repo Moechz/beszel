@@ -1,0 +1,111 @@
+[en-us]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[zh-cn]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel 是一款轻量级服务器监控平台，带历史数据、Docker 容器统计和可配置告警。本包同时内置 hub（网页面板）与 agent，安装后即可监控 NAS 本机——CPU、内存、磁盘、网络、温度以及 Docker 容器，还能在同一个面板里继续添加其他机器（服务器、虚拟机、树莓派等）。应用从 TOS 桌面以新标签页方式打开；后端仅监听本机回环、不对外多开任何端口，全部流量经 TOS 网页服务的标准路由转发，安全省心。服务以专用非特权用户运行并施加 systemd 沙箱加固。"
+release_note = "内置 Beszel 0.19.0 官方 hub 与 agent 二进制（Go 静态编译，零运行时依赖）。安装后打开应用创建管理员账号，再接入本机监控：在网页 设置→令牌 创建通用令牌，填入 /usr/local/beszelmonitor/beszelmonitor-agent.env 的 TOKEN= 后执行 systemctl restart beszelmonitor-agent 即可。检测到 Docker 时容器统计自动可用。"
+important    = "网页面板没有默认密码：首位访问者将创建管理员账号，请在安装后立即完成初始化。监控数据保存在 /var/lib/beszelmonitor；apt remove 卸载时保留数据，apt purge 会彻底删除。"
+
+[zh-hk]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel 是一款輕量級伺服器監控平台，帶歷史資料、Docker 容器統計和可設定警示。本包同時內建 hub（網頁儀表板）與 agent，安裝後即可監控 NAS 本機——CPU、記憶體、磁碟、網路、溫度以及 Docker 容器，還能在同一個儀表板裡繼續新增其他機器（伺服器、虛擬機、樹莓派等）。應用從 TOS 桌面以新分頁方式開啟；後端僅監聽本機回環、不對外多開任何連接埠，全部流量經 TOS 網頁服務的標準路由轉發，安全省心。服務以專用非特權使用者執行並施加 systemd 沙箱強化。"
+release_note = "內建 Beszel 0.19.0 官方 hub 與 agent 二進位（Go 靜態編譯，零執行時相依）。安裝後開啟應用建立管理員帳號，再接入本機監控：在網頁 設定→權杖 建立通用權杖，填入 /usr/local/beszelmonitor/beszelmonitor-agent.env 的 TOKEN= 後執行 systemctl restart beszelmonitor-agent 即可。偵測到 Docker 時容器統計自動可用。"
+important    = "網頁儀表板沒有預設密碼：首位訪問者將建立管理員帳號，請在安裝後立即完成初始化。監控資料保存在 /var/lib/beszelmonitor；apt remove 移除時保留資料，apt purge 會徹底刪除。"
+
+[fr-fr]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[de-de]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[it-it]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[es-es]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[hu-hu]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[ja-jp]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel は、履歴データ・Docker コンテナ統計・柔軟なアラートを備えた軽量サーバー監視プラットフォームです。本パッケージには hub（Web ダッシュボード）と agent の両方が同梱されており、インストールするだけで NAS 本体の CPU・メモリ・ディスク・ネットワーク・温度・Docker コンテナを監視できます。他のサーバーや VM、Raspberry Pi も同じダッシュボードから追加できます。TOS デスクトップから新しいブラウザタブで開きます。バックエンドはループバックのみで待ち受け、追加のポートは外部に開放せず、すべての通信は TOS Web サーバーの標準ルート経由で転送されます。専用の非特権ユーザーで systemd サンドボックス内で動作します。"
+release_note = "公式 Beszel 0.19.0 の hub・agent バイナリ同梱（静的 Go ビルド、実行時依存なし）。インストール後、アプリを開いて管理者アカウントを作成し、ローカル agent をペアリング：設定→トークンでユニバーサルトークンを作成し /usr/local/beszelmonitor/beszelmonitor-agent.env の TOKEN= に貼り付けて systemctl restart beszelmonitor-agent を実行してください。Docker があればコンテナ統計は自動的に有効になります。"
+important    = "Web ダッシュボードにデフォルトのパスワードはありません：最初の訪問者が管理者アカウントを作成するため、インストール後すぐにセットアップを完了してください。監視データは /var/lib/beszelmonitor に保存され、apt remove では保持、apt purge で完全削除されます。"
+
+[ko-kr]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[pl-pl]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[ru-ru]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[tr-tr]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
+
+[pt-pt]
+name         = "Beszel Monitor"
+auth         = "Moechz"
+version      = "@@VERSION@@"
+descript     = "Beszel is a lightweight server monitoring platform with historical data, Docker container stats, and configurable alerts. This package bundles both the hub (web dashboard) and the agent, so your NAS monitors itself out of the box - CPU, memory, disks, network, temperatures, and Docker containers - and you can add more machines (other servers, VMs, Raspberry Pi) from the same dashboard. Opens in a new browser tab from the TOS desktop. The backend listens on loopback only: no extra port is exposed, all traffic goes through the TOS web server route. Runs as a dedicated unprivileged user in a hardened systemd sandbox."
+release_note = "Bundles the official Beszel 0.19.0 hub and agent binaries (static Go builds, zero runtime dependencies). After install, open the app and create the admin account, then pair the local agent: create a universal token under Settings - Tokens, paste it into /usr/local/beszelmonitor/beszelmonitor-agent.env (TOKEN=...), and run 'systemctl restart beszelmonitor-agent'. Docker container stats are enabled automatically when Docker is present."
+important    = "The web dashboard has no default password: the first visitor creates the admin account, so complete the setup right after installing. Monitoring data is stored in /var/lib/beszelmonitor; 'apt remove' keeps it, 'apt purge' deletes it."
