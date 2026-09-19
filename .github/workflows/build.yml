@@ -1,12 +1,18 @@
 name: Build deb
 
-# 打 tag（v*，须等于 config.ini 的 version，如 v0.19.0-1）自动构建并发布
-# Release；也可手动触发（workflow_dispatch）
+# 双类 tag 触发：
+#   build-v<上游版本>（如 build-v0.19.0）→ source-build job：
+#     从上游源码构建静态二进制 → 发布 build Release（V6 审计链，
+#     配方/参数与上游 .goreleaser.yml 一致，公开可查）
+#   v<完整版本>（如 v0.19.0-8，须等于 config.ini 的 version）→ deb job：
+#     用 source 模式拉取自建二进制 → 打 TOS 应用中心 deb → 发布 Release
+# 手动触发（workflow_dispatch）仅用于快速验证 deb 打包（可单架构）。
+#
 # 注意：TOS 上架要求 Release 资产名为 <app_id>_<platform>.deb（无版本号），
-# 版本由 Release tag 表达——本工作流产出的 out/beszelmonitor_*.deb 即该命名
+# 版本由 Release tag 表达——deb job 产出的 out/beszelmonitor_*.deb 即该命名
 on:
   push:
-    tags: ['v*']
+    tags: ['build-v*', 'v*']
   workflow_dispatch:
     inputs:
       target_arch:
@@ -19,8 +25,106 @@ permissions:
   contents: write   # 发布 Release 用
 
 jobs:
+  source-build:
+    # 上游源码 → 自建静态二进制（V6：不得分发上游预编译二进制，坑 31/32/43）
+    name: source build (upstream binaries)
+    if: startsWith(github.ref, 'refs/tags/build-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve pinned inputs from config.env
+        run: |
+          set -euo pipefail
+          echo "UPSTREAM_TAG=${GITHUB_REF_NAME#build-}" >> "$GITHUB_ENV"
+          grep -E '^(GO_VERSION|SRC_COMMIT)=' config.env >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '${{ env.GO_VERSION }}'
+
+      - name: Clone upstream source at tag
+        run: |
+          git clone --depth 1 --branch "$UPSTREAM_TAG" https://github.com/henrygd/beszel.git src
+          echo "CLONED_COMMIT=$(git -C src rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Pin sync check (config.env vs upstream tag)
+        run: |
+          if [ "$CLONED_COMMIT" != "$SRC_COMMIT" ]; then
+            echo "::error::SRC_COMMIT pin 与上游 tag 不一致（$CLONED_COMMIT != $SRC_COMMIT），请先更新 config.env"
+            exit 1
+          fi
+
+      - name: Build static binaries (upstream goreleaser parameters)
+        run: |
+          set -euxo pipefail
+          cd src
+          # 上游 .goreleaser.yml before-hook：按仓库内 go:generate 指令的
+          # pinned sha 拉取 agent 用的 smartctl 负载（Windows agent 资产）
+          go generate -run fetchsmartctl ./agent
+          mkdir -p ../out
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch \
+              go build -o "../out/beszel-linux-$arch" ./internal/cmd/hub
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch \
+              go build -ldflags "-s -w" -o "../out/beszel-agent-linux-$arch" ./internal/cmd/agent
+          done
+
+      - name: Sanity checks (ELF arch / statically linked / not packed)
+        run: |
+          python3 - <<'EOF'
+          import re, subprocess, sys
+          bad = []
+          for arch, want in (('amd64', 'x86-64'), ('arm64', 'aarch64')):
+              for kind in ('beszel', 'beszel-agent'):
+                  p = f'out/{kind}-linux-{arch}'
+                  out = subprocess.run(['file', p], capture_output=True, text=True).stdout
+                  if 'ELF' not in out or want not in out:
+                      bad.append(f'{p}: 非 {want} ELF -> {out.strip()}')
+                  if 'statically linked' not in out:
+                      bad.append(f'{p}: 非静态链接')
+                  if 'no section header' in out:
+                      bad.append(f'{p}: 疑似 UPX 加壳')
+          if bad:
+              print('\n'.join(bad), file=sys.stderr); sys.exit(1)
+          print('file 检查全部通过')
+          EOF
+
+      - name: Produce SHA256SUMS + BUILD-INFO
+        run: |
+          cd out
+          sha256sum beszel-linux-* beszel-agent-linux-* > SHA256SUMS
+          {
+            echo "mode       : source (built from upstream source by public CI)"
+            echo "upstream   : henrygd/beszel $UPSTREAM_TAG (commit $CLONED_COMMIT)"
+            echo "toolchain  : $(go env GOVERSION) on $RUNNER_OS ($RUNNER_ARCH)"
+            echo "cgo        : disabled (CGO_ENABLED=0, pure Go)"
+            echo "upx        : not used"
+            echo "agent smartctl payload: fetched per upstream go:generate directive (pinned sha in source)"
+            echo "workflow   : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > BUILD-INFO.txt
+          cat SHA256SUMS BUILD-INFO.txt
+
+      - name: Release self-built binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/beszel-linux-*
+            out/beszel-agent-linux-*
+            out/SHA256SUMS
+            out/BUILD-INFO.txt
+          body: |
+            从上游源码构建的静态二进制（V6 审计链）。
+
+            - 上游: henrygd/beszel ${{ env.UPSTREAM_TAG }}（commit ${{ env.CLONED_COMMIT }}）
+            - 工具链: Go ${{ env.GO_VERSION }}，CGO_ENABLED=0，无 UPX
+            - 构建参数与上游 .goreleaser.yml 一致（见 VERIFICATION.md）
+            - 哈希: 见本 Release 的 SHA256SUMS
+            - 配方: .github/workflows/build.yml（本仓库，公开）/ scripts/repro-build.sh
+
   build:
     name: build (${{ matrix.arch }})
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -33,6 +137,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # 上架 Release 必须是 source 模式（V6：上游预编译二进制一票否决）
+      - name: Enforce source mode on release tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          grep -q '^BUILD_MODE=source' config.env \
+            || { echo "::error::v* tag 的 Release 必须以 BUILD_MODE=source 构建（当前非 source，V6 红线）"; exit 1; }
 
       # 缓存外部资源下载（build/downloads），key 含版本配置，升级自动失效
       - name: Cache downloads
@@ -70,3 +181,16 @@ jobs:
             out/beszelmonitor_*.deb
             out/beszelmonitor_*.deb.sha256
           generate_release_notes: true
+          body: |
+            TOS 7 应用中心 deb（beszelmonitor）。
+
+            二进制来源：本仓库公开 CI 从上游源码构建（BUILD_MODE=source），
+            审计链（提审三链接）：
+            - workflow: https://github.com/Moechz/beszel/blob/main/.github/workflows/build.yml
+            - Actions runs: https://github.com/Moechz/beszel/actions
+            - 源码构建 Release（含 SHA256SUMS）: https://github.com/Moechz/beszel/releases/tag/build-v${{ env.UPSTREAM_VER }}
+
+            复核材料：VERIFICATION.md（仓库根目录）。上架资产命名
+            `<app_id>_<platform>.deb`，版本由 Release tag 表达。
+        env:
+          UPSTREAM_VER: 0.19.0

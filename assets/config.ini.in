@@ -14,7 +14,7 @@
   "depend": [],
   "relation": [],
   "platform": "@@PLATFORM@@",
-  "official": "https://github.com/henrygd/beszel",
+  "official": "https://github.com/Moechz/beszel",
   "application_type": "deb",
   "system_id": "beszelmonitor",
   "package": "beszelmonitor",

@@ -72,11 +72,34 @@ case "$1" in
       fi
     fi
 
+    # 7b.【坑 23】装机探测 NoNewPrivileges exec 兼容性：
+    #     个别 TOS 构建的内核/安全策略会让 NNP 下 exec 直接 203/EXEC。
+    #     探测失败时仅为两个单元装最小降级 drop-in（只关 NNP，其余沙箱不动）；
+    #     探测正常时只清本包自己的旧残留（未知文件不动，坑 27）
+    if systemd-run --wait --collect -p NoNewPrivileges=true /bin/true > /dev/null 2>&1; then
+      for u in beszelmonitor beszelmonitor-agent; do
+        rm -f /etc/systemd/system/$u.service.d/80-beszelmonitor-exec-compat.conf 2>/dev/null || true
+      done
+      pkg_log postinst "NNP exec 探测通过，无需兼容 drop-in"
+    else
+      for u in beszelmonitor beszelmonitor-agent; do
+        d=/etc/systemd/system/$u.service.d
+        mkdir -p "$d"
+        printf '[Service]\nNoNewPrivileges=false\n' > "$d/80-beszelmonitor-exec-compat.conf"
+        chmod 0644 "$d/80-beszelmonitor-exec-compat.conf"
+      done
+      pkg_log postinst "NNP exec 探测失败，已安装 exec-compat drop-in（NoNewPrivileges=false）"
+      echo "提示: 本机内核在 NoNewPrivileges 下 exec 异常，已自动降级 NNP 保证服务可启动。" >&2
+    fi
+
     # 8. 系统层注册（幂等；应用中心安装时平台也会做同样的事）
+    # 主服务从 init.d/ 注册（init.d 只放主服务——多单元会卡死 TOS 应用中心安装流程）；
+    # agent 单元由 deb 以 dpkg 实体文件落盘 /etc/systemd/system，此处仅自愈校验
     install -m 0644 "$APP_DIR/init.d/beszelmonitor.service" \
       /etc/systemd/system/beszelmonitor.service
-    install -m 0644 "$APP_DIR/init.d/beszelmonitor-agent.service" \
-      /etc/systemd/system/beszelmonitor-agent.service
+    if [ ! -e /etc/systemd/system/beszelmonitor-agent.service ]; then
+      echo "警告: beszelmonitor-agent.service 缺失（应为包文件），请重装包恢复" >&2
+    fi
     systemctl daemon-reload
 
     # hub：启用（幂等，升级路径 prerm 只停不拆故必须重 enable）并（重）启动
@@ -114,12 +137,28 @@ case "$1" in
       fi
     fi
 
-    # 启动健康提示（只在 failed 时告警；agent 未配置时 inactive 属预期）
-    sleep 1
-    if systemctl is-failed --quiet beszelmonitor.service; then
+    # 启动健康检查（坑 26：轮询就绪，30s 上限；超时打有限快照辅助排查）
+    ready=0
+    if command -v curl > /dev/null 2>&1; then
+      for _ in $(seq 1 30); do
+        if curl -fsS --max-time 2 http://127.0.0.1:8090/ -o /dev/null 2>/dev/null; then
+          ready=1
+          break
+        fi
+        sleep 1
+      done
+    else
+      sleep 1
+      systemctl is-active --quiet beszelmonitor.service && ready=1
+    fi
+    if [ "$ready" = 1 ]; then
+      pkg_log postinst "beszelmonitor.service 就绪（127.0.0.1:8090 响应）"
+    elif systemctl is-failed --quiet beszelmonitor.service; then
       echo "警告: beszelmonitor 启动失败，排查: journalctl -u beszelmonitor -n 50 --no-pager" >&2
-    elif systemctl is-active --quiet beszelmonitor.service; then
-      pkg_log postinst "beszelmonitor.service active"
+      systemctl --no-pager -l status beszelmonitor.service 2>/dev/null | head -15 >> "$MAINT_LOG" 2>/dev/null || true
+    else
+      echo "警告: beszelmonitor 30s 内未就绪，排查: journalctl -u beszelmonitor -n 50 --no-pager" >&2
+      systemctl --no-pager -l status beszelmonitor.service 2>/dev/null | head -15 >> "$MAINT_LOG" 2>/dev/null || true
     fi
     if systemctl is-failed --quiet beszelmonitor-agent.service; then
       echo "警告: beszelmonitor-agent 失败，多为未配置令牌: journalctl -u beszelmonitor-agent -n 20 --no-pager" >&2
@@ -137,6 +176,7 @@ case "$1" in
     echo "  接入本机 : agent 在配置令牌前不运行；网页 设置→令牌 创建通用令牌，填入"
     echo "             的 TOKEN= 后执行: systemctl restart beszelmonitor-agent"
     echo "  端口说明 : 仅监听 127.0.0.1:8090，不对外暴露端口（经 TOS nginx 路由访问）"
+    echo "  隐私政策 : https://<NAS的IP>/beszelmonitor/privacy-policy.html"
     echo ""
     ;;
 esac

@@ -14,6 +14,9 @@ if [ "$1" = "purge" ]; then
   # 系统层注册文件（postinst 兜底安装的）
   rm -f /etc/systemd/system/beszelmonitor.service
   rm -f /etc/systemd/system/beszelmonitor-agent.service
+  # 本包安装的 exec-compat drop-in（只删自己的已知文件，坑 27；目录留给未知内容）
+  rm -f /etc/systemd/system/beszelmonitor.service.d/80-beszelmonitor-exec-compat.conf
+  rm -f /etc/systemd/system/beszelmonitor-agent.service.d/80-beszelmonitor-exec-compat.conf
   rm -f /etc/nginx/conf.d/beszelmonitor.conf
   # 运行用户
   if id -u beszelmonitor > /dev/null 2>&1; then

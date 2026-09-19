@@ -7,8 +7,15 @@
 #   - Deb Development Specification（目录结构/config.ini/nginx/systemd/生命周期）
 #   - Package Specification（版本号仅数字和点、三处一致、资产命名）
 #
+# 二进制来源（V6 红线：不得分发上游预编译二进制）:
+#   BUILD_MODE=source（默认）— 从本仓库公开 CI 的源码构建 Release 拉取自建
+#     二进制，SHA256SUMS 与 config.env pin 双层校验（坑 32/43 轻路线）
+#   BUILD_MODE=compat — 直接用上游官方 Release 二进制，仅限本地快速验证，
+#     产物 BUILD-INFO 带 NOT-FOR-SUBMISSION 标记，禁止提交商店
+#
 # 产物（out/）:
-#   beszelmonitor_<版本>_<arch>.deb   完整版本名 deb（本地安装/测试用）
+#   beszelmonitor_<版本>_<平台>.deb   完整版本名 deb（本地安装/测试用；
+#     平台用 TOS 名 x86_64/aarch64——手动安装页拒收含 amd64/arm64 的文件名，坑 30a）
 #   beszelmonitor_<platform>.deb      Release 资产名 deb（上架上传用，版本由 Release tag 表达）
 #   beszelmonitor_<platform>.deb.sha256  上架要求的校验文件
 #
@@ -49,14 +56,28 @@ case "$TARGET_ARCH" in
 esac
 
 TAG="v$BESZEL_VERSION"
+ARCH_UP=$(printf '%s' "$TARGET_ARCH" | tr '[:lower:]' '[:upper:]')
+
+# --- compat 模式（上游预编译，仅本地测试） ---
 RELEASE_BASE="https://github.com/henrygd/beszel/releases/download/$TAG"
 # 注意：上游 tarball 资产名不带版本号（仅 deb 与 checksums 带），升级版本 URL 不变
 HUB_TGZ="beszel_linux_${GOARCH}.tar.gz"
 AGENT_TGZ="beszel-agent_linux_${GOARCH}.tar.gz"
 CHECKSUMS="beszel_${BESZEL_VERSION}_checksums.txt"
+
+# --- source 模式（本仓库公开 CI 源码构建产物） ---
+HUB_BIN="beszel-linux-$GOARCH"
+AGENT_BIN="beszel-agent-linux-$GOARCH"
+BIN_SUMS="SHA256SUMS"
+BIN_BUILDINFO="BUILD-INFO.txt"
+
 LICENSE_FILE="LICENSE"
-DEB_FILE="$OUT_DIR/${APP_ID}_${VERSION_FULL}_${TARGET_ARCH}.deb"
+# 本地测试产物用 TOS 平台名（手动安装页拒收 amd64/arm64 文件名，坑 30a）
+DEB_FILE="$OUT_DIR/${APP_ID}_${VERSION_FULL}_${TOS_PLATFORM}.deb"
 STORE_DEB="$OUT_DIR/${APP_ID}_${TOS_PLATFORM}.deb"       # Release 资产命名（无版本）
+
+# 防 macOS 元数据混入（AppleDouble ._ / COPYFILE，坑 8）
+export COPYFILE_DISABLE=1
 
 MAINTAINER_FULL="$MAINTAINER_NAME <$MAINTAINER_EMAIL>"
 
@@ -114,34 +135,54 @@ PYEOF
 stage_fetch() {
   mkdir -p "$DL_DIR"
 
-  # 1. hub / agent 二进制（官方 Release，Go 静态编译）
-  fetch "$RELEASE_BASE/$HUB_TGZ"     "$DL_DIR/$HUB_TGZ"
-  fetch "$RELEASE_BASE/$AGENT_TGZ"   "$DL_DIR/$AGENT_TGZ"
+  # 1. 二进制来源（V6：上架只允许 source 模式）
+  local f want got want_pin
+  if [ "$BUILD_MODE" = "source" ]; then
+    fetch "$BIN_RELEASE_BASE/$HUB_BIN"    "$DL_DIR/$HUB_BIN"
+    fetch "$BIN_RELEASE_BASE/$AGENT_BIN"  "$DL_DIR/$AGENT_BIN"
+    fetch "$BIN_RELEASE_BASE/$BIN_SUMS"   "$DL_DIR/$BIN_SUMS"
+    fetch "$BIN_RELEASE_BASE/$BIN_BUILDINFO" "$DL_DIR/$BIN_BUILDINFO" || true
+    # 双层校验（坑 43）：Release 的 SHA256SUMS + config.env pin 相互独立互验
+    for pair in "HUB:$HUB_BIN" "AGENT:$AGENT_BIN"; do
+      kind=${pair%%:*}; f=${pair#*:}
+      want=$(grep -a " $f\$" "$DL_DIR/$BIN_SUMS" | tail -1 | awk '{print $1}')
+      [ -n "$want" ] || die "SHA256SUMS 中找不到 $f"
+      eval "want_pin=\$${kind}_SHA256_${ARCH_UP}"
+      [ -n "$want_pin" ] || die "config.env 缺 ${kind}_SHA256_${ARCH_UP}（先跑 CI build-v tag 并回填 pin）"
+      got=$(sha256_of "$DL_DIR/$f")
+      [ "$got" = "$want" ]     || die "sha256 与 SHA256SUMS 不符: $f（want=$want got=$got）"
+      [ "$got" = "$want_pin" ] || die "sha256 与 config.env pin 不符: $f（want=$want_pin got=$got）"
+      log "  ok: $f（双层校验通过）"
+    done
+  else
+    warn "BUILD_MODE=compat：使用上游预编译二进制，产物仅限本地测试，禁止提交商店（V6）"
+    fetch "$RELEASE_BASE/$HUB_TGZ"     "$DL_DIR/$HUB_TGZ"
+    fetch "$RELEASE_BASE/$AGENT_TGZ"   "$DL_DIR/$AGENT_TGZ"
+    fetch "$RELEASE_BASE/$CHECKSUMS"   "$DL_DIR/$CHECKSUMS"
+    for f in "$HUB_TGZ" "$AGENT_TGZ"; do
+      want=$(grep -a " $f\$" "$DL_DIR/$CHECKSUMS" | tail -1 | awk '{print $1}')
+      [ -n "$want" ] || die "checksums 中找不到 $f"
+      got=$(sha256_of "$DL_DIR/$f")
+      [ "$got" = "$want" ] || die "sha256 不匹配: $f（want=$want got=$got，删除后重跑 fetch）"
+      log "  ok: $f"
+    done
+  fi
 
-  # 2. 官方 checksums（sha256 校验用）
-  fetch "$RELEASE_BASE/$CHECKSUMS"   "$DL_DIR/$CHECKSUMS"
-
-  # 3. 上游 LICENSE（进 /usr/share/doc/beszelmonitor/copyright）
+  # 2. 上游 LICENSE（进 /usr/share/doc/beszelmonitor/copyright）
   fetch "https://raw.githubusercontent.com/henrygd/beszel/$TAG/LICENSE" "$DL_DIR/$LICENSE_FILE"
-
-  # 4. sha256 校验（tarball 必须与官方 checksums 一致）
-  log "校验 sha256..."
-  local f want got
-  for f in "$HUB_TGZ" "$AGENT_TGZ"; do
-    want=$(grep -a " $f\$" "$DL_DIR/$CHECKSUMS" | tail -1 | awk '{print $1}')
-    [ -n "$want" ] || die "checksums 中找不到 $f"
-    got=$(sha256_of "$DL_DIR/$f")
-    [ "$got" = "$want" ] || die "sha256 不匹配: $f（want=$want got=$got，删除后重跑 fetch）"
-    log "  ok: $f"
-  done
 }
 
 # ============================================================
 # 阶段: stage —— 组装 deb 文件系统树（官方规范布局）
 # ============================================================
 stage_stage() {
-  [ -s "$DL_DIR/$HUB_TGZ" ]   || die "缺少 $HUB_TGZ，请先运行: ./build.sh fetch"
-  [ -s "$DL_DIR/$AGENT_TGZ" ] || die "缺少 $AGENT_TGZ，请先运行: ./build.sh fetch"
+  if [ "$BUILD_MODE" = "source" ]; then
+    [ -s "$DL_DIR/$HUB_BIN" ]   || die "缺少 $HUB_BIN，请先运行: ./build.sh fetch"
+    [ -s "$DL_DIR/$AGENT_BIN" ] || die "缺少 $AGENT_BIN，请先运行: ./build.sh fetch"
+  else
+    [ -s "$DL_DIR/$HUB_TGZ" ]   || die "缺少 $HUB_TGZ，请先运行: ./build.sh fetch"
+    [ -s "$DL_DIR/$AGENT_TGZ" ] || die "缺少 $AGENT_TGZ，请先运行: ./build.sh fetch"
+  fi
 
   local APP="$STAGE_DIR/usr/local/$APP_ID"
   log "组装文件系统树: $STAGE_DIR（/usr/local/$APP_ID 规范布局）"
@@ -152,12 +193,18 @@ stage_stage() {
   mkdir -p "$APP/init.d"
   mkdir -p "$STAGE_DIR/usr/share/doc/$APP_ID"
 
-  # 二进制（release tarball 内为单文件：beszel / beszel-agent；规范要求放 bin/）
-  log "  + bin/beszel + bin/beszel-agent（上游 $BESZEL_VERSION）"
-  tar xzOf "$DL_DIR/$HUB_TGZ" beszel > "$APP/bin/beszel"
-  chmod 0755 "$APP/bin/beszel"
-  tar xzOf "$DL_DIR/$AGENT_TGZ" beszel-agent > "$APP/bin/beszel-agent"
-  chmod 0755 "$APP/bin/beszel-agent"
+  # 二进制（规范要求放 bin/）
+  if [ "$BUILD_MODE" = "source" ]; then
+    log "  + bin/beszel + bin/beszel-agent（源码自建 $BESZEL_VERSION，BUILD_MODE=source）"
+    install -m 0755 "$DL_DIR/$HUB_BIN"   "$APP/bin/beszel"
+    install -m 0755 "$DL_DIR/$AGENT_BIN" "$APP/bin/beszel-agent"
+  else
+    log "  + bin/beszel + bin/beszel-agent（上游预编译 $BESZEL_VERSION，仅测试）"
+    tar xzOf "$DL_DIR/$HUB_TGZ" beszel > "$APP/bin/beszel"
+    chmod 0755 "$APP/bin/beszel"
+    tar xzOf "$DL_DIR/$AGENT_TGZ" beszel-agent > "$APP/bin/beszel-agent"
+    chmod 0755 "$APP/bin/beszel-agent"
+  fi
 
   # config.ini（严格 JSON；@@...@@ 占位符渲染）
   log "  + config.ini（External Open: open_path=true, path=/$APP_ID/）"
@@ -167,7 +214,7 @@ stage_stage() {
       "$ASSETS_DIR/config.ini.in" > "$APP/config.ini"
 
   # 多语言文件（文件名必须等于 app id；14 种必需语言）
-  log "  + $APP_ID.lang（14 语言）"
+  log "  + $APP_ID.lang（23 语言超集）"
   sed -e "s|@@VERSION@@|$VERSION_FULL|g" \
       "$ASSETS_DIR/$APP_ID.lang" > "$APP/$APP_ID.lang"
 
@@ -182,12 +229,13 @@ stage_stage() {
   cp "$ASSETS_DIR/nginx/$APP_ID.conf" "$APP/nginx/$APP_ID.conf"
   cp "$ASSETS_DIR/nginx/$APP_ID.conf" "$STAGE_DIR/etc/nginx/conf.d/$APP_ID.conf"
 
-  # systemd 服务：init.d/ 满足 TOS 规范；同时以 dpkg 实体文件放
-  # /etc/systemd/system（metube 验证过的双落盘模式，systemd 直接加载）
-  log "  + init.d/ + /etc/systemd/system/（hub + agent 服务）"
+  # systemd 服务：init.d/ 只放主服务（system_id 同名单元）——TOS 应用中心的安装
+  # 流程按 init.d 迭代注册服务，多放辅助单元会导致其内部命令失败、
+  # "App state will be deleted"、UI 卡"安装中"（真机实证，见坑 11）；
+  # 辅助服务只以 dpkg 实体文件放 /etc/systemd/system（metube-pot 同款模式）
+  log "  + init.d/（仅主服务）+ /etc/systemd/system/（hub + agent）"
   mkdir -p "$STAGE_DIR/etc/systemd/system"
   cp "$ASSETS_DIR/init.d/beszelmonitor.service"      "$APP/init.d/beszelmonitor.service"
-  cp "$ASSETS_DIR/init.d/beszelmonitor-agent.service" "$APP/init.d/beszelmonitor-agent.service"
   cp "$ASSETS_DIR/init.d/beszelmonitor.service"      "$STAGE_DIR/etc/systemd/system/beszelmonitor.service"
   cp "$ASSETS_DIR/init.d/beszelmonitor-agent.service" "$STAGE_DIR/etc/systemd/system/beszelmonitor-agent.service"
 
@@ -200,7 +248,58 @@ stage_stage() {
   for f in index.html app.js styles.css; do
     sed -e "s|@@VERSION@@|$VERSION_FULL|g" "$ASSETS_DIR/webui/$f" > "$WEBUI_DIR/$f"
   done
-  ( cd "$WEBUI_DIR" && tar -cjf "$APP/webui.bz2" index.html app.js styles.css )
+  # 坑 46：嵌套归档必须 uid/gid=0/uname=root/mtime=0 —— macOS bsdtar 无 --owner，
+  # 统一用 python tarfile 重打（S11 警告的根治）
+  python3 - "$WEBUI_DIR" "$APP/webui.bz2" <<'PYWEBUI'
+import io, sys, tarfile
+src, out = sys.argv[1], sys.argv[2]
+with tarfile.open(out, 'w:bz2') as tf:
+    for name in ('index.html', 'app.js', 'styles.css'):
+        with open(f'{src}/{name}', 'rb') as fh:
+            data = fh.read()
+        ti = tarfile.TarInfo(name)
+        ti.uid = ti.gid = 0
+        ti.uname = ti.gname = 'root'
+        ti.mtime = 0
+        ti.mode = 0o644
+        ti.type = tarfile.REGTYPE
+        ti.size = len(data)
+        tf.addfile(ti, io.BytesIO(data))
+PYWEBUI
+
+  # 隐私政策（坑 45：C3 必备资产；nginx 精确路由 /beszelmonitor/privacy-policy.html）
+  log "  + privacy-policy.html（C3）"
+  cp "$ASSETS_DIR/privacy-policy.html" "$APP/privacy-policy.html"
+
+  # 构建溯源（V6 审计链：进包的 BUILD-INFO + 审核者用的 PROVENANCE.md）
+  if [ "$BUILD_MODE" = "source" ] && [ -s "$DL_DIR/$BIN_BUILDINFO" ]; then
+    cp "$DL_DIR/$BIN_BUILDINFO" "$APP/BUILD-INFO"
+  else
+    { echo "mode: compat (upstream prebuilt release binaries)"
+      echo "upstream: henrygd/beszel $TAG"
+      echo "*** NOT FOR STORE SUBMISSION — V6 rejects prebuilt-binary distribution ***"
+    } > "$APP/BUILD-INFO"
+  fi
+  {
+    echo "Beszel Monitor $VERSION_FULL — artifact provenance"
+    echo "=================================================="
+    echo "mode        : $BUILD_MODE"
+    echo "upstream    : https://github.com/henrygd/beszel  tag $TAG  commit $SRC_COMMIT"
+    echo "toolchain   : Go $GO_VERSION (public GitHub Actions runner)"
+    if [ "$BUILD_MODE" = "source" ]; then
+      echo "hub binary  : $BIN_RELEASE_BASE/$HUB_BIN"
+      echo "              sha256 $(sha256_of "$DL_DIR/$HUB_BIN")"
+      echo "agent binary: $BIN_RELEASE_BASE/$AGENT_BIN"
+      echo "              sha256 $(sha256_of "$DL_DIR/$AGENT_BIN")"
+      echo "audit trail : workflow .github/workflows/build.yml (public), build Release $BIN_RELEASE_BASE"
+      echo "rebuild     : scripts/repro-build.sh in the packaging repository"
+    else
+      echo "hub binary  : $RELEASE_BASE/$HUB_TGZ (upstream prebuilt; testing only)"
+      echo "agent binary: $RELEASE_BASE/$AGENT_TGZ (upstream prebuilt; testing only)"
+      echo "*** compat build — NOT FOR SUBMISSION (V6) ***"
+    fi
+    echo "license     : MIT, full text in ./copyright"
+  } > "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"
 
   # 配置模板（以 .example 随包分发，postinst 首装复制为正式 env；升级不覆盖）
   log "  + *.env.example 配置模板"
@@ -213,7 +312,11 @@ stage_stage() {
     echo "$APP_ID ($VERSION_FULL) TOS7; urgency=medium"
     echo ""
     echo "  * 基于 Beszel 上游 $BESZEL_VERSION 打包（hub + agent 双二进制）"
-    echo "  * 二进制取自官方 Release（sha256 校验），Go 静态编译零运行时依赖"
+    if [ "$BUILD_MODE" = "source" ]; then
+      echo "  * 二进制由公开 CI 从上游源码构建（双层 sha256 校验），零运行时依赖"
+    else
+      echo "  * 二进制取自上游官方 Release（sha256 校验；compat 测试包，禁止上架）"
+    fi
     echo "  * WebUI External Open：新标签页经 /$APP_ID/ 路由访问，后端仅监听回环"
     echo ""
     echo " -- $MAINTAINER_FULL  $(date -R 2>/dev/null || date '+%a, %d %b %Y %H:%M:%S %z')"
@@ -228,7 +331,9 @@ stage_stage() {
     "$APP/init.d/"*.service \
     "$STAGE_DIR/etc/systemd/system/"*.service \
     "$APP/"*.example \
-    "$STAGE_DIR/usr/share/doc/$APP_ID/changelog.Debian"
+    "$APP/privacy-policy.html" "$APP/BUILD-INFO" \
+    "$STAGE_DIR/usr/share/doc/$APP_ID/changelog.Debian" \
+    "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"
 
   # 清理 macOS 扩展属性，避免污染 tar（AppleDouble / quarantine）
   if command -v xattr >/dev/null 2>&1; then
@@ -254,7 +359,6 @@ stage_verify() {
            "$APP/images/icons/$APP_ID.svg" \
            "$APP/nginx/$APP_ID.conf" \
            "$APP/init.d/beszelmonitor.service" \
-           "$APP/init.d/beszelmonitor-agent.service" \
            "$STAGE_DIR/etc/systemd/system/beszelmonitor.service" \
            "$STAGE_DIR/etc/systemd/system/beszelmonitor-agent.service" \
            "$STAGE_DIR/etc/nginx/conf.d/$APP_ID.conf" \
@@ -262,9 +366,20 @@ stage_verify() {
            "$APP/webui.bz2" \
            "$APP/beszelmonitor.env.example" \
            "$APP/beszelmonitor-agent.env.example" \
-           "$STAGE_DIR/usr/share/doc/$APP_ID/copyright"; do
+           "$APP/privacy-policy.html" \
+           "$APP/BUILD-INFO" \
+           "$STAGE_DIR/usr/share/doc/$APP_ID/copyright" \
+           "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"; do
     [ -e "$p" ] || { warn "缺失: ${p#$STAGE_DIR/}"; fail=1; }
   done
+
+  # V6：提交商店的包禁止 compat 模式（上游预编译二进制一票否决）
+  if [ "$BUILD_MODE" = "source" ]; then
+    grep -q "NOT FOR STORE SUBMISSION" "$APP/BUILD-INFO" && \
+      { warn "BUILD-INFO 带 compat 标记，与 BUILD_MODE=source 矛盾"; fail=1; }
+  else
+    warn "BUILD_MODE=compat：本产物仅限本地测试，禁止提交商店（V6）"
+  fi
 
   log "校验 config.ini（JSON 合法性 / 互斥字段 / 版本一致性）..."
   python3 - "$APP/config.ini" "$VERSION_FULL" "$TOS_PLATFORM" "$APP_ID" <<'PYEOF' || fail=1
@@ -288,18 +403,27 @@ for e in errs:
 sys.exit(1 if errs else 0)
 PYEOF
 
-  log "校验 .lang（14 种必需语言齐全）..."
+  log "校验 .lang（23 语言超集 + beta 门禁）..."
   local lang_missing
   lang_missing=$(python3 - "$APP/$APP_ID.lang" <<'PYEOF'
 import sys
 required = ["zh-cn","zh-hk","en-us","fr-fr","de-de","it-it","es-es",
-            "hu-hu","ja-jp","ko-kr","pl-pl","ru-ru","tr-tr","pt-pt"]
+            "hu-hu","ja-jp","ko-kr","pl-pl","ru-ru","tr-tr","pt-pt",
+            "ar-sa","cs-cz","he-il","id-id","nb-no","nl-nl",
+            "sv-se","th-th","vi-vn"]
 text = open(sys.argv[1], encoding="utf-8").read()
 missing = [t for t in required if f"[{t}]" not in text]
+if __import__("re").search(r"\bbeta\b", text, 2):
+    missing.append("含 beta 字样（V11 红线）")
 print(",".join(missing))
 PYEOF
 )
-  [ -z "$lang_missing" ] || { warn "lang 缺少语言节: $lang_missing"; fail=1; }
+  [ -z "$lang_missing" ] || { warn "lang 问题: $lang_missing"; fail=1; }
+
+  # init.d 必须恰好一个服务文件（TOS 应用中心兼容性，真机实证）
+  local n_initd
+  n_initd=$(ls "$APP/init.d/"*.service 2>/dev/null | wc -l | tr -d ' ')
+  [ "$n_initd" = "1" ] || { warn "init.d/ 必须只含主服务（当前 $n_initd 个）"; fail=1; }
 
   log "校验 systemd 服务（禁 Restart/必配 StartLimit/禁 ExecStart 变量展开）..."
   local svc
@@ -313,18 +437,33 @@ PYEOF
     grep -q '^User=beszelmonitor' "$svc" || { warn "必须 User=beszelmonitor: $svc"; fail=1; }
   done
 
-  log "校验 webui.bz2（解压含 .html）..."
-  tar tjf "$APP/webui.bz2" | grep -q '\.html$' || { warn "webui.bz2 缺少 html"; fail=1; }
+  log "校验 webui.bz2（含 .html / 全部条目属主 root，坑 46）..."
+  n_html=$(tar tjf "$APP/webui.bz2" | grep -c '\.html$' || true)
+  [ "$n_html" -ge 1 ] || { warn "webui.bz2 缺少 html"; fail=1; }
+  python3 - "$APP/webui.bz2" <<'PYWEBUI' || fail=1
+import sys, tarfile
+bad = [m.name for m in tarfile.open(sys.argv[1]).getmembers()
+       if m.uid != 0 or m.gid != 0]
+if bad:
+    print(f"    webui.bz2 条目属主非 root: {bad}", file=sys.stderr)
+    sys.exit(1)
+PYWEBUI
 
   log "校验 ELF 架构（目标: $ELF_ARCH, for GNU/Linux）..."
   local f
   for f in "$APP/bin/beszel" "$APP/bin/beszel-agent"; do
-    if file "$f" | grep -q "ELF.*$ELF_ARCH"; then
+    ftype=$(file "$f")
+    if printf '%s' "$ftype" | grep -q "ELF.*$ELF_ARCH"; then
       log "  ok: $(basename "$f")"
     else
-      warn "错误架构: ${f#$STAGE_DIR/} -> $(file "$f")"
+      warn "错误架构: ${f#$STAGE_DIR/} -> $ftype"
       fail=1
     fi
+    # 静态链接 + 未加壳（UPX 壳会显示 "no section header"，坑 43）
+    printf '%s' "$ftype" | grep -q "statically linked" || \
+      { warn "应为静态链接: $(basename "$f") -> $ftype"; fail=1; }
+    printf '%s' "$ftype" | grep -q "no section header" && \
+      { warn "疑似加壳（no section header）: $(basename "$f")"; fail=1; }
   done
 
   log "检查 macOS Mach-O 混入（应为 0）..."
@@ -349,6 +488,12 @@ stage_deb() {
   "$SCRIPT_DIR/makedeb.sh" "$STAGE_DIR" "$ASSETS_DIR" "$DEB_FILE" \
     "$VERSION_FULL" "$TARGET_ARCH" "$MAINTAINER_FULL"
 
+  # data.tar 内不得残留 macOS 元数据（AppleDouble ._ / .DS_Store，坑 8）
+  local data_member n_meta
+  data_member=$(ar t "$DEB_FILE" | grep -m1 '^data\.tar')
+  n_meta=$(ar p "$DEB_FILE" "$data_member" | tar tf - | grep -c -E '(^|/)\._|(^|/)\.DS_Store' || true)
+  [ "$n_meta" -eq 0 ] || die "data.tar 残留 $n_meta 个 macOS 元数据条目，请检查 stage 清洗"
+
   # Release 资产命名（版本由 Release tag 表达）+ 上架要求的 sha256
   cp "$DEB_FILE" "$STORE_DEB"
   if command -v sha256sum >/dev/null 2>&1; then
@@ -363,6 +508,7 @@ stage_deb() {
 stage_info() {
   cat <<EOF
 Beszel 版本    : $BESZEL_VERSION (完整版本 $VERSION_FULL)
+构建模式      : $BUILD_MODE（source=公开 CI 源码自建 / compat=上游预编译仅测试）
 目标架构      : $TARGET_ARCH (Go:$GOARCH TOS:$TOS_PLATFORM)
 TOS app id    : $APP_ID（新标签页 /$APP_ID/，后端 127.0.0.1:8090）
 产物          : $DEB_FILE

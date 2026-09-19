@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beszel Monitor — Privacy Policy / 隐私政策</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:780px;margin:2rem auto;padding:0 1rem;line-height:1.6;color:#222}
+h1{font-size:1.5rem}h2{font-size:1.15rem;margin-top:1.6rem;border-bottom:1px solid #ddd;padding-bottom:.3rem}
+.zh{background:#f7f7f9;padding:.8rem 1rem;border-radius:6px;font-size:.92rem}
+code{background:#f0f0f2;padding:.1rem .3rem;border-radius:3px;font-size:.9em}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;font-size:.92rem}
+</style>
+</head>
+<body>
+
+<h1>Beszel Monitor — Privacy Policy</h1>
+<p class="zh">本文档为双语隐私政策。英文版在前，中文版在后。（This document is bilingual: English first, Chinese below.）</p>
+
+<h2>1. Overview</h2>
+<p>Beszel Monitor is a server-monitoring application that runs <strong>entirely on your own NAS device</strong> (TerraMaster TOS 7). The application itself does <strong>not collect, transmit, or share any personal data</strong> with the packager (Moechz) or any third party. There are no analytics, no telemetry, no tracking, and no advertising SDKs. Metrics are collected from your own machines and stored only on your NAS.</p>
+
+<h2>2. Data stored on your device</h2>
+<table>
+<tr><th>Data</th><th>Location</th><th>Purpose</th></tr>
+<tr><td>Admin account (username + password hash), app settings, monitored-host list</td><td><code>/var/lib/beszelmonitor/data.db</code> (SQLite)</td><td>Dashboard login and configuration persistence</td></tr>
+<tr><td>Historical metrics (CPU, memory, disk, network, temperatures, Docker stats)</td><td><code>/var/lib/beszelmonitor/</code></td><td>The charts and alerts you asked the app to keep</td></tr>
+<tr><td>Agent key fingerprint cache</td><td><code>/var/lib/beszelmonitor/agent/</code></td><td>Host-key verification when pairing agents</td></tr>
+<tr><td>App configuration</td><td><code>/usr/local/beszelmonitor/beszelmonitor.env</code>, <code>beszelmonitor-agent.env</code></td><td>Server settings; agent pairing token</td></tr>
+<tr><td>Service logs</td><td>systemd journal</td><td>Operational diagnostics</td></tr>
+</table>
+<p>All of this data stays on your device. It is never uploaded by the application to the packager or anyone else.</p>
+
+<h2>3. Your rights: access, correction, deletion</h2>
+<ul>
+<li><strong>Access</strong>: open the web UI, or read the files listed above (e.g. <code>sqlite3 /var/lib/beszelmonitor/data.db</code>).</li>
+<li><strong>Correction</strong>: edit settings in the web UI or edit the <code>.env</code> files at any time.</li>
+<li><strong>Deletion</strong>: remove hosts or data in the web UI; <code>apt remove --purge beszelmonitor</code> (or TOS App Center uninstall) removes configuration and all monitoring data. No remote copy exists anywhere because nothing was ever uploaded.</li>
+</ul>
+
+<h2>4. Third-party network access (user-initiated only)</h2>
+<p>The application contacts external services <strong>only through features you explicitly configure</strong>:</p>
+<ul>
+<li><strong>Agents you add</strong>: the hub on your NAS connects over your network to the agent machines you register. Metrics traffic stays between your machines.</li>
+<li><strong>Optional integrations you configure</strong> (e.g. email/SMTP notifications, webhooks): data goes directly from your NAS to the service you entered. No intermediary sees it.</li>
+<li><strong>Update check</strong>: the dashboard's built-in update check (only when an admin opens it) queries the upstream project's releases on <code>github.com</code>.</li>
+<li><strong>Nothing else</strong>: no data is sent to Moechz, to any Moechz-operated server, or to any other intermediary.</li>
+</ul>
+
+<h2>5. Accounts and children</h2>
+<p>The dashboard has a single local admin account created by its first user. There is no cloud account, no sign-up, and no processing of children's data. The web UI is a local service on your LAN, reachable through the TOS web route.</p>
+
+<h2>6. Changes and contact</h2>
+<p>This policy ships inside the application package and is served at <code>/beszelmonitor/privacy-policy.html</code> on your device. For questions or reports: <code>https://github.com/Moechz/beszel</code> (Issues).</p>
+
+<hr>
+
+<h1>Beszel Monitor — 隐私政策（中文）</h1>
+
+<h2>1. 概述</h2>
+<p>Beszel Monitor 是完全运行在<strong>您自己的 NAS 设备</strong>（TerraMaster TOS 7）上的服务器监控应用。应用本身<strong>不向打包者（Moechz）或任何第三方收集、传输、共享任何个人数据</strong>：无统计、无遥测、无跟踪、无广告 SDK。指标数据从您自己的机器采集，且只存储在您的 NAS 上。</p>
+
+<h2>2. 存储在您设备上的数据</h2>
+<table>
+<tr><th>数据</th><th>位置</th><th>用途</th></tr>
+<tr><td>管理员账号（用户名 + 密码哈希）、应用设置、被监控主机列表</td><td><code>/var/lib/beszelmonitor/data.db</code>（SQLite）</td><td>仪表盘登录与配置持久化</td></tr>
+<tr><td>历史指标（CPU、内存、磁盘、网络、温度、Docker 容器统计）</td><td><code>/var/lib/beszelmonitor/</code></td><td>您要求应用保留的图表与告警数据</td></tr>
+<tr><td>agent 密钥指纹缓存</td><td><code>/var/lib/beszelmonitor/agent/</code></td><td>接入 agent 时的主机密钥校验</td></tr>
+<tr><td>应用配置</td><td><code>/usr/local/beszelmonitor/beszelmonitor.env</code>、<code>beszelmonitor-agent.env</code></td><td>服务设置；agent 接入令牌</td></tr>
+<tr><td>服务日志</td><td>systemd journal</td><td>运行诊断</td></tr>
+</table>
+<p>以上数据全部保存在您的设备上，应用不会将其上传给打包者或任何其他方。</p>
+
+<h2>3. 您的权利：访问、更正、删除</h2>
+<ul>
+<li><strong>访问</strong>：打开网页界面，或直接读取上述文件（如 <code>sqlite3 /var/lib/beszelmonitor/data.db</code>）。</li>
+<li><strong>更正</strong>：在网页界面修改设置，或随时编辑 <code>.env</code> 配置文件。</li>
+<li><strong>删除</strong>：在网页界面删除主机或数据；<code>apt remove --purge beszelmonitor</code>（或 TOS 应用中心卸载）会删除配置与全部监控数据。因从未上传，任何地方都不存在远程副本。</li>
+</ul>
+
+<h2>4. 第三方网络访问（仅用户主动触发）</h2>
+<p>应用<strong>仅在您显式配置的功能</strong>中访问外部服务：</p>
+<ul>
+<li><strong>您添加的 agent</strong>：NAS 上的 hub 通过您的网络连接您注册的 agent 机器，指标流量只在您的机器之间流转。</li>
+<li><strong>您配置的可选集成</strong>（如邮件/SMTP 通知、webhook）：数据由您的 NAS 直发您填写的服务，无任何中间方。</li>
+<li><strong>更新检查</strong>：仪表盘内置的更新检查（仅管理员打开时）会查询上游项目在 <code>github.com</code> 的发布信息。</li>
+<li><strong>其他</strong>：不向 Moechz、Moechz 运营的任何服务器或任何中间方发送数据。</li>
+</ul>
+
+<h2>5. 账号与儿童</h2>
+<p>仪表盘仅有一个由首个使用者创建的本地管理员账号。没有云账号、没有注册流程、不处理儿童数据。网页界面是局域网本地服务，经 TOS web 路由访问。</p>
+
+<h2>6. 变更与联系</h2>
+<p>本政策随应用包分发，并在您的设备上经 <code>/beszelmonitor/privacy-policy.html</code> 提供。疑问或报告：<code>https://github.com/Moechz/beszel</code>（Issues）。</p>
+
+</body>
+</html>
