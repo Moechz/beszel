@@ -25,6 +25,7 @@ set -euo pipefail
 die() { printf '\033[1;31m错误:\033[0m %s\n' "$*" >&2; exit 1; }
 
 command -v go >/dev/null 2>&1 || die "需要 Go ${GO_VER}（https://go.dev/dl/）"
+command -v bun >/dev/null 2>&1 || die "需要 bun（https://bun.sh，前端构建用）"
 have_go=$(go env GOVERSION)
 if [ "$have_go" != "go${GO_VER}" ]; then
   echo "警告: 本机工具链 ${have_go} 与 CI pin go${GO_VER} 不一致，产物哈希会不同（功能等价）" >&2
@@ -36,6 +37,10 @@ trap 'rm -rf "$work"' EXIT
 git clone --depth 1 --branch "$TAG" https://github.com/henrygd/beszel.git "$work/src"
 cd "$work/src"
 [ "$(git rev-parse HEAD)" = "$COMMIT" ] || die "上游 tag 的 commit 与 pin 不一致（$(git rev-parse HEAD) != $COMMIT）"
+
+# 上游 release workflow 同款前端构建（bun.lock 锁定依赖，产 internal/site/dist）
+bun install --no-save --cwd ./internal/site
+bun run --cwd ./internal/site build
 
 # 上游 .goreleaser.yml before-hook 等价步骤：
 # go mod tidy —— 对已冻结的 tag 归档是幂等操作，CI/本配方均跳过（不改依赖）

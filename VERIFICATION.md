@@ -9,8 +9,9 @@
 
 | 产物 | 来源 | 锁定 |
 |---|---|---|
-| `/usr/local/beszelmonitor/bin/beszel` | 本仓库 CI 从上游源码构建 | Release `SHA256SUMS` + `config.env` pin 双层 sha256（见 §3） |
+| `/usr/local/beszelmonitor/bin/beszel` | 本仓库 CI 从上游源码构建（含前端） | Release `SHA256SUMS` + `config.env` pin 双层 sha256（见 §3） |
 | `/usr/local/beszelmonitor/bin/beszel-agent` | 同上 | 同上 |
+| hub 内嵌前端 | `internal/site` 源码经 bun 构建（`bun.lock` 锁定依赖，非预构建产物） | tag/commit + bun.lock |
 | `LICENSE`（→ copyright） | 上游 tag 归档 | tag/commit 锁定 |
 | 其余文件（config.ini、lang、nginx conf、systemd units、生命周期脚本、图标、webui 占位页、隐私政策） | 本仓库源码 | git 历史 |
 
@@ -28,6 +29,8 @@
 ```bash
 git clone --depth 1 --branch v0.19.0 https://github.com/henrygd/beszel.git
 # commit 与 config.env SRC_COMMIT 比对，不一致即失败
+bun install --no-save --cwd ./internal/site    # 前端：上游 release.yml 同款，bun.lock 锁定
+bun run --cwd ./internal/site build             # 产 internal/site/dist（hub go:embed）
 go generate -run fetchsmartctl ./agent   # 上游 .goreleaser.yml before-hook
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o beszel-linux-amd64       ./internal/cmd/hub
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o beszel-agent-linux-amd64 ./internal/cmd/agent
@@ -39,11 +42,13 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o beszel-agent-
 | 项 | 上游 | 本构建 | 说明 |
 |---|---|---|---|
 | CGO | `CGO_ENABLED=0` | 同 | 纯 Go（PocketBase 用 modernc SQLite），静态链接 |
+| 前端 | `bun install + bun run build`（release.yml） | 同 | 从源码构建，`bun.lock` 锁定依赖 |
 | hub ldflags | （无） | 同 | 上游 hub 构建即无 ldflags |
 | agent ldflags | `-s -w -X …buildGOARM={{.Arm}}` | `-s -w` | `{{.Arm}}` 仅 arm32 有值；amd64/arm64 为空，等价 |
 | UPX | 上游不对其发布产物加壳 | 不使用 | 明确排除加壳（`file` 显示完整 section header） |
 | `go mod tidy` | before-hook | 跳过 | 对冻结 tag 幂等，跳过以不改依赖 |
 | go generate（smartctl） | before-hook | 同指令 | 按仓库内 `go:generate` 的 pinned sha 拉取 agent 的 smartctl 负载（Windows agent 资产，Linux 构建不使用） |
+| .NET LHM（Windows 传感器） | release.yml 前置步骤 | 不需要 | Windows agent 专用；Linux 构建不引用 |
 
 审核链三链接（提审表单同填）：
 

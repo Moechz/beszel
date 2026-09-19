@@ -43,6 +43,9 @@ jobs:
         with:
           go-version: '${{ env.GO_VERSION }}'
 
+      - name: Set up bun (frontend toolchain)
+        uses: oven-sh/setup-bun@v2
+
       - name: Clone upstream source at tag
         run: |
           git clone --depth 1 --branch "$UPSTREAM_TAG" https://github.com/henrygd/beszel.git src
@@ -54,6 +57,15 @@ jobs:
             echo "::error::SRC_COMMIT pin 与上游 tag 不一致（$CLONED_COMMIT != $SRC_COMMIT），请先更新 config.env"
             exit 1
           fi
+
+      - name: Build frontend from source (upstream release.yml parameters)
+        run: |
+          set -euxo pipefail
+          cd src
+          # 上游 release workflow 同款：bun 按 internal/site/bun.lock 锁定依赖，
+          # 产 internal/site/dist 供 hub 的 go:embed 内嵌
+          bun install --no-save --cwd ./internal/site
+          bun run --cwd ./internal/site build
 
       - name: Build static binaries (upstream goreleaser parameters)
         run: |
@@ -97,7 +109,8 @@ jobs:
           {
             echo "mode       : source (built from upstream source by public CI)"
             echo "upstream   : henrygd/beszel $UPSTREAM_TAG (commit $CLONED_COMMIT)"
-            echo "toolchain  : $(go env GOVERSION) on $RUNNER_OS ($RUNNER_ARCH)"
+            echo "toolchain  : $(go env GOVERSION) + bun $(bun --version) on $RUNNER_OS ($RUNNER_ARCH)"
+            echo "frontend   : built from source (internal/site, bun.lock pinned)"
             echo "cgo        : disabled (CGO_ENABLED=0, pure Go)"
             echo "upx        : not used"
             echo "agent smartctl payload: fetched per upstream go:generate directive (pinned sha in source)"
