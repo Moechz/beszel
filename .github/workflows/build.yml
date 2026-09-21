@@ -174,10 +174,12 @@ jobs:
       - name: Verify deb structure
         run: |
           ls -lh out/
-          dpkg-deb --info out/beszelmonitor_*_*.deb
-          dpkg-deb --contents out/beszelmonitor_*_*.deb
-          dpkg-deb --ctrl-tarfile out/beszelmonitor_*_*.deb | tar tz   # DEBIAN 脚本清单
-          lintian --pedantic --fail-on-warnings false out/beszelmonitor_*_*.deb || true
+          # 版本名 deb（商店名 deb 与其内容相同，仅文件名不同）
+          DEB=$(ls out/beszelmonitor_[0-9]*.deb)
+          dpkg-deb --info "$DEB"
+          dpkg-deb --contents "$DEB"
+          dpkg-deb --ctrl-tarfile "$DEB" | tar tz   # DEBIAN 脚本清单
+          lintian --pedantic --fail-on-warnings false "$DEB" || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
