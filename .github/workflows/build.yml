@@ -178,7 +178,8 @@ jobs:
           DEB=$(ls out/beszelmonitor_[0-9]*.deb)
           dpkg-deb --info "$DEB"
           dpkg-deb --contents "$DEB"
-          dpkg-deb --ctrl-tarfile "$DEB" | tar tz   # DEBIAN 脚本清单
+          # DEBIAN 脚本清单（--control 展开到目录，避免 ctrl-tarfile 与 tar 管道的压缩格式兼容问题）
+          dpkg-deb --control "$DEB" /tmp/ctrl && ls -l /tmp/ctrl
           lintian --pedantic --fail-on-warnings false "$DEB" || true
 
       - name: Upload artifact
