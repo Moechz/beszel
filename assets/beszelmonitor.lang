@@ -11,7 +11,7 @@ name         = "Beszel Monitor"
 auth         = "henrygd"
 version      = "@@VERSION@@"
 descript     = "Beszel 是一款轻量级服务器监控平台，带历史数据、Docker 容器统计和可配置告警。本包同时内置 hub（网页面板）与 agent，安装后即可监控 NAS 本机——CPU、内存、磁盘、网络、温度以及 Docker 容器，还能在同一个面板里继续添加其他机器（服务器、虚拟机、树莓派等）。应用从 TOS 桌面以新标签页方式打开；后端仅监听本机回环、不对外多开任何端口，全部流量经 TOS 网页服务的标准路由转发，安全省心。服务以专用非特权用户运行并施加 systemd 沙箱加固。"
-release_note = "内置 Beszel 0.19.0 官方 hub 与 agent 二进制（Go 静态编译，零运行时依赖）。安装后打开应用创建管理员账号，再接入本机监控：在网页 设置→令牌 创建通用令牌，填入 /usr/local/beszelmonitor/beszelmonitor-agent.env 的 TOKEN= 后执行 systemctl restart beszelmonitor-agent 即可。检测到 Docker 时容器统计自动可用。"
+release_note = "内置由 Beszel 0.19.0 官方源码编译的 hub 与 agent（Go 静态编译，零运行时依赖）。安装后打开应用创建管理员账号，再接入本机监控：在网页 设置→令牌 创建通用令牌，填入 /usr/local/beszelmonitor/beszelmonitor-agent.env 的 TOKEN= 后执行 systemctl restart beszelmonitor-agent 即可。检测到 Docker 时容器统计自动可用。"
 important    = "网页面板没有默认密码：首位访问者将创建管理员账号，请在安装后立即完成初始化。监控数据保存在 /var/lib/beszelmonitor；apt remove 卸载时保留数据，apt purge 会彻底删除。"
 
 [zh-hk]
@@ -19,7 +19,7 @@ name         = "Beszel Monitor"
 auth         = "henrygd"
 version      = "@@VERSION@@"
 descript     = "Beszel 是一款輕量級伺服器監控平台，帶歷史資料、Docker 容器統計和可設定警示。本包同時內建 hub（網頁儀表板）與 agent，安裝後即可監控 NAS 本機——CPU、記憶體、磁碟、網路、溫度以及 Docker 容器，還能在同一個儀表板裡繼續新增其他機器（伺服器、虛擬機、樹莓派等）。應用從 TOS 桌面以新分頁方式開啟；後端僅監聽本機回環、不對外多開任何連接埠，全部流量經 TOS 網頁服務的標準路由轉發，安全省心。服務以專用非特權使用者執行並施加 systemd 沙箱強化。"
-release_note = "內建 Beszel 0.19.0 官方 hub 與 agent 二進位（Go 靜態編譯，零執行時相依）。安裝後開啟應用建立管理員帳號，再接入本機監控：在網頁 設定→權杖 建立通用權杖，填入 /usr/local/beszelmonitor/beszelmonitor-agent.env 的 TOKEN= 後執行 systemctl restart beszelmonitor-agent 即可。偵測到 Docker 時容器統計自動可用。"
+release_note = "內建由 Beszel 0.19.0 官方原始碼編譯的 hub 與 agent（Go 靜態編譯，零執行時相依）。安裝後開啟應用建立管理員帳號，再接入本機監控：在網頁 設定→權杖 建立通用權杖，填入 /usr/local/beszelmonitor/beszelmonitor-agent.env 的 TOKEN= 後執行 systemctl restart beszelmonitor-agent 即可。偵測到 Docker 時容器統計自動可用。"
 important    = "網頁儀表板沒有預設密碼：首位訪問者將建立管理員帳號，請在安裝後立即完成初始化。監控資料保存在 /var/lib/beszelmonitor；apt remove 移除時保留資料，apt purge 會徹底刪除。"
 
 [fr-fr]
