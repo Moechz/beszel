@@ -299,10 +299,9 @@ PYWEBUI
       echo "*** compat build — NOT FOR SUBMISSION (V6) ***"
     fi
     echo "license     : MIT, full text in ./copyright"
-  } > "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"
-  # TOS dpkg 全局排除 /usr/share/doc/*（仅回补 copyright/changelog.*），
-  # 故同份内容再落应用目录一份，装机可见、dpkg --verify 无缺失噪音
-  cp "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md" "$APP/PROVENANCE.md"
+  } > "$APP/PROVENANCE.md"
+  # 注：不放 /usr/share/doc —— TOS dpkg 全局排除 /usr/share/doc/*（仅回补
+  # copyright/changelog.*），放那里装机即丢且 dpkg --verify 永报 missing
 
   # 配置模板（以 .example 随包分发，postinst 首装复制为正式 env；升级不覆盖）
   log "  + *.env.example 配置模板"
@@ -335,8 +334,7 @@ PYWEBUI
     "$STAGE_DIR/etc/systemd/system/"*.service \
     "$APP/"*.example \
     "$APP/privacy-policy.html" "$APP/BUILD-INFO" "$APP/PROVENANCE.md" \
-    "$STAGE_DIR/usr/share/doc/$APP_ID/changelog.Debian" \
-    "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"
+    "$STAGE_DIR/usr/share/doc/$APP_ID/changelog.Debian"
 
   # 清理 macOS 扩展属性，避免污染 tar（AppleDouble / quarantine）
   if command -v xattr >/dev/null 2>&1; then
@@ -372,8 +370,7 @@ stage_verify() {
            "$APP/privacy-policy.html" \
            "$APP/BUILD-INFO" \
            "$APP/PROVENANCE.md" \
-           "$STAGE_DIR/usr/share/doc/$APP_ID/copyright" \
-           "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"; do
+           "$STAGE_DIR/usr/share/doc/$APP_ID/copyright"; do
     [ -e "$p" ] || { warn "缺失: ${p#$STAGE_DIR/}"; fail=1; }
   done
 
