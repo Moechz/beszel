@@ -300,6 +300,9 @@ PYWEBUI
     fi
     echo "license     : MIT, full text in ./copyright"
   } > "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"
+  # TOS dpkg 全局排除 /usr/share/doc/*（仅回补 copyright/changelog.*），
+  # 故同份内容再落应用目录一份，装机可见、dpkg --verify 无缺失噪音
+  cp "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md" "$APP/PROVENANCE.md"
 
   # 配置模板（以 .example 随包分发，postinst 首装复制为正式 env；升级不覆盖）
   log "  + *.env.example 配置模板"
@@ -331,7 +334,7 @@ PYWEBUI
     "$APP/init.d/"*.service \
     "$STAGE_DIR/etc/systemd/system/"*.service \
     "$APP/"*.example \
-    "$APP/privacy-policy.html" "$APP/BUILD-INFO" \
+    "$APP/privacy-policy.html" "$APP/BUILD-INFO" "$APP/PROVENANCE.md" \
     "$STAGE_DIR/usr/share/doc/$APP_ID/changelog.Debian" \
     "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"
 
@@ -368,6 +371,7 @@ stage_verify() {
            "$APP/beszelmonitor-agent.env.example" \
            "$APP/privacy-policy.html" \
            "$APP/BUILD-INFO" \
+           "$APP/PROVENANCE.md" \
            "$STAGE_DIR/usr/share/doc/$APP_ID/copyright" \
            "$STAGE_DIR/usr/share/doc/$APP_ID/PROVENANCE.md"; do
     [ -e "$p" ] || { warn "缺失: ${p#$STAGE_DIR/}"; fail=1; }
@@ -496,11 +500,9 @@ stage_deb() {
 
   # Release 资产命名（版本由 Release tag 表达）+ 上架要求的 sha256
   cp "$DEB_FILE" "$STORE_DEB"
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$STORE_DEB" | awk '{print $1"  "$2}' > "$STORE_DEB.sha256"
-  else
-    shasum -a 256 "$STORE_DEB" | awk '{print $1"  "$2}' > "$STORE_DEB.sha256"
-  fi
+  local store_sha
+  store_sha=$(sha256_of "$STORE_DEB")
+  printf '%s  %s\n' "$store_sha" "$(basename "$STORE_DEB")" > "$STORE_DEB.sha256"
   log "完成: $DEB_FILE"
   log "上架资产: $STORE_DEB (+ .sha256；Release tag 须为 v$VERSION_FULL)"
 }
