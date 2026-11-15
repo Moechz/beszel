@@ -1,0 +1,51 @@
+# ===========================================================================
+# Beszel for TerraMaster TOS 7 (Docker application)
+# ===========================================================================
+# Upstream image : henrygd/beszel:0.21.2 (Docker Hub, used unmodified)
+#                  -> https://github.com/henrygd/beszel
+#
+# Ports   : host 8145 -> container 8090. The host port is in the
+#           TOS-recommended 8000-19999 range and is not one of the reserved
+#           ports (22/80/443/445/3306/5050/5432/6379/8181/8443).
+# Volumes : all persistent data lives below
+#           /Volume1/DockerAppData/beszeldocker/. The /Volume* wildcard is
+#           deliberately NOT used: the platform does not expand it.
+# TOS rules honoured: Docker Hub image with a fixed tag (never ':latest'),
+#           container_name == application id, restart: unless-stopped,
+#           non-root user, no privileged mode, no network_mode: host, no
+#           cap_add, explicit TZ, a healthcheck on the only service, and
+#           x-app-meta as the last block.
+# Escaping: docker compose interpolates ${VAR}/$VAR in compose files, so any
+#           '$' meant for the shell is written '$$'.
+#
+# NOTE for maintainers: never place a comment line directly in front of a
+# "- value" sequence item (ports, volumes, ...). The official
+# TOSAppSelfTestingTool parses the compose file line by line; a comment inside
+# a sequence makes it skip its permission sync, the mounted directories stay
+# root-owned and the non-root container cannot write into them.
+
+services:
+  beszeldocker:
+    image: henrygd/beszel:0.21.2
+    container_name: beszeldocker
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "8145:8090"
+    environment:
+      TZ: "Asia/Shanghai"
+    volumes:
+      - /Volume1/DockerAppData/beszeldocker/data:/beszel_data
+    healthcheck:
+      test: ["CMD", "/beszel", "health", "--url", "http://127.0.0.1:8090"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# TOS App Center web metadata (must be the last block of the file):
+# web.port is the published host port above, protocol is http.
+x-app-meta:
+  web:
+    port: 8145
+    protocol: http

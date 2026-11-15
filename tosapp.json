@@ -1,0 +1,113 @@
+{
+  "app_id": "beszeldocker",
+  "title": "Beszel",
+  "image": "henrygd/beszel:0.21.2",
+  "repo_name": "beszel",
+  "mode": "plain",
+  "container_port": 8090,
+  "category": [
+    "Utilities"
+  ],
+  "volumes": [
+    {
+      "host": "/Volume1/DockerAppData/beszeldocker/data",
+      "container": "/beszel_data"
+    }
+  ],
+  "env": {
+    "TZ": "Asia/Shanghai"
+  },
+  "auth": "henrygd",
+  "upstream_url": "https://github.com/henrygd/beszel",
+  "upstream_license": "MIT",
+  "descript": "Beszel is a lightweight server monitor: CPU, memory, disk, network and temperature history, Docker container stats, and alerts when a threshold is crossed. This package runs the hub, which keeps history in a small SQLite database in the application data folder; agents on other machines can report to it by key.",
+  "release_note": "1. First release: Beszel 0.21.2 from Docker Hub as a non-root container. Server monitoring hub with container stats, history and alerts; SQLite data in the application data folder.",
+  "important": "Requires DockerEngine (installed automatically if missing). Open the UI, create the admin account, then add systems - the hub monitors the NAS it runs on; other machines need the Beszel agent image and the public key shown in the UI. Data lives in DockerAppData/beszeldocker/data. Plain HTTP; use a TLS reverse proxy before exposing the dashboard to the internet.",
+  "probe": {
+    "user_in_image": "(root)",
+    "entrypoint": [
+      "/beszel"
+    ],
+    "cmd": [
+      "serve",
+      "--http=0.0.0.0:8090"
+    ],
+    "exposed_ports": [
+      8090
+    ],
+    "declared_volumes": [
+      "/beszel_data"
+    ],
+    "image_healthcheck": [],
+    "digest": "henrygd/beszel@sha256:b0be90bd4aee2993fde763032a5098ce4386fba43cfe5031ec017b8d9e8c97a2",
+    "architecture": "x86_64",
+    "platforms": [
+      "x86_64",
+      "aarch64"
+    ],
+    "http_client_in_image": "",
+    "trial_run": {
+      "ok": true,
+      "http_code": "200",
+      "state": "running",
+      "paths": [
+        "/beszel_data"
+      ],
+      "host_port": 18000,
+      "log_tail": "2026/11/15 02:11:29 Server started at http://0.0.0.0:8090\n> Dashboard: http://0.0.0.0:8090/_/\n> REST API:  http://0.0.0.0:8090/api/",
+      "files_in_mounts": "/tmp/tosdocker-trial-1794708687/beszel_data/id_ed25519\n/tmp/tosdocker-trial-1794708687/beszel_data/auxiliary.db-shm\n/tmp/tosdocker-trial-1794708687/beszel_data/auxiliary.db-wal\n/tmp/tosdocker-trial-1794708687/beszel_data/auxiliary.db\n/tmp/tosdocker-trial-1794708687/beszel_data/data.db-shm"
+    },
+    "docker_hub": {},
+    "github": {
+      "owner": "henrygd",
+      "repo": "beszel",
+      "description": "Lightweight server monitoring with historical data, docker stats, and alerts.",
+      "license": "MIT",
+      "homepage": "https://beszel.dev"
+    }
+  },
+  "platform": "x86_64",
+  "user": "1000:1000",
+  "publisher": "Moechz",
+  "compose_project": "beszeldocker",
+  "github_repo": "beszel",
+  "upstream_version": "0.21.2",
+  "release_tag_prefix": "v",
+  "version": "0.21.2-1",
+  "help": "https://github.com/Moechz/beszel/issues",
+  "official": "https://github.com/henrygd/beszel",
+  "license": "MIT",
+  "docker_socket": false,
+  "group_add": [],
+  "healthcheck": [
+    "CMD",
+    "/beszel",
+    "health",
+    "--url",
+    "http://127.0.0.1:8090"
+  ],
+  "host_port": 8145,
+  "healthcheck_start_period": "30s",
+  "translations": {
+    "zh-cn": {
+      "descript": "Beszel 是轻量级服务器监控：CPU、内存、磁盘、网络、温度的历史曲线，Docker 容器状态统计，以及超过阈值时的告警。本包运行 hub（主控），历史保存在应用数据目录里的一个小型 SQLite 数据库；其它机器装上 agent 后凭公钥上报。",
+      "important": "需要 DockerEngine（缺失时应用中心会自动安装）。打开界面创建管理员账号，然后添加系统——hub 会监控它所在的这台 NAS；其它机器需要单独运行 Beszel agent 镜像，并使用界面里显示的公钥。数据保存在 DockerAppData/beszeldocker/data。界面为纯 HTTP，暴露到公网前请配置带 TLS 的反向代理。",
+      "release_note": "1. 首个版本：基于 Docker Hub 的 Beszel 0.21.2，以非 root 容器运行。服务器监控主控，带容器统计、历史曲线与告警；SQLite 数据保存在应用数据目录。"
+    },
+    "zh-hk": {
+      "descript": "Beszel 是輕量級伺服器監控：CPU、記憶體、磁碟、網路、溫度的歷史曲線，Docker 容器狀態統計，以及超過閾值時的告警。本包執行 hub（主控），歷史保存在應用資料目錄裡的一個小型 SQLite 資料庫；其它機器裝上 agent 後憑公鑰上報。",
+      "important": "需要 DockerEngine（缺少時應用中心會自動安裝）。開啟介面建立管理員帳號，然後新增系統——hub 會監控它所在的這台 NAS；其它機器需要單獨執行 Beszel agent 映像，並使用介面裡顯示的公鑰。資料保存在 DockerAppData/beszeldocker/data。介面為純 HTTP，公開到互聯網前請配置帶 TLS 的反向代理。",
+      "release_note": "1. 首個版本：基於 Docker Hub 的 Beszel 0.21.2，以非 root 容器運行。伺服器監控主控，帶容器統計、歷史曲線與告警；SQLite 資料保存在應用資料目錄。"
+    }
+  },
+  "data_notes": "`/beszel_data` (mounted from `DockerAppData/beszeldocker/data`) holds `data.db` and `auxiliary.db` (SQLite) plus the generated keys.",
+  "design_notes": [
+    "**Hub only.** One container, one port; the SQLite databases live in the mounted data folder.",
+    "**Agent optional.** Other machines are added by running the agent image, not by extra containers here."
+  ],
+  "limitations": [
+    "- It monitors the NAS it runs on; remote machines need the Beszel agent.",
+    "- The dashboard is plain HTTP; use a TLS reverse proxy before exposing it to the internet.",
+    "- Alerting needs a notification channel configured in the UI (email, webhook, ntfy...)."
+  ]
+}

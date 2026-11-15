@@ -1,14 +1,15 @@
-# 构建工作区与产物
-build/
-out/
+# --- build products (the package is distributed through GitHub Releases) ---
+/build/
+/out/
 
-# macOS
+# --- generated copy used for manual compose testing ---
+/test/compose-resolved/
+
+# --- internal project documents: kept locally, never published ---
+AGENTS.md
+HANDOFF.md
+/docs/
+
+# --- build machine noise ---
 .DS_Store
 ._*
-
-# 文档不进仓库（README/PROJECT_NOTES 仅本地维护）
-README.md
-PROJECT_NOTES.md
-
-# Python
-__pycache__/
